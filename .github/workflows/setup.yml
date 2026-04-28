@@ -1,0 +1,46 @@
+name: Project setup
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+
+      - name: Start Docker Compose services
+        run: docker compose up -d
+
+      - name: Wait for 4gaBoards server
+        run: |
+          sudo apt-get update
+          sudo apt-get install wait-for-it -y
+          wait-for-it localhost:3000 -t 120
+
+      - name: install test dependencies
+        working-directory: tests
+        run: |
+          pnpm install --ignore-workspace
+          npx playwright install chromium
+
+      - name: Run Playwright tests
+        working-directory: tests
+        run: |
+          pnpm run test:e2e e2e/features/
